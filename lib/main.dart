@@ -61,12 +61,12 @@ class _MyHomePageState extends State<MyHomePage> {
   final getPath  =
   dylib1.lookupFunction<SHGetFolderPathC, SHGetFolderPathDart>('SHGetFolderPathA');
   print(getPath);
- final cis = 0x001c ;
- final flags = 0x8000;
+ final cis = 0x001c; // THE ID for LOCAL_DATA
+ final flags = 0x8000; // CREATE FLAG
   ffi.Pointer<Utf16> r = allocate();
   final getPathResult = getPath(0, cis, 0,flags, r);
   print(getPathResult);
-  print(r.ref);
+  print(r.ref.toString()); // This prints "Instance of 'Utf16'"
 //   File file = File(r.ref.toString());
 //   print(file.readAsStringSync());
 //   file.writeAsStringSync(r.ref.toString());
