@@ -58,6 +58,8 @@ class _MyHomePageState extends State<MyHomePage> {
   void _incrementCounter() {
   final dylib1 = ffi.DynamicLibrary.open('shell32.dll');
   final dylib2 = ffi.DynamicLibrary.open('ole32.dll');
+  // This is a deprecated call, but should still work. Using this for now because it's easier to call.
+  // The new one needs a GUI struct, that I haven't figured out how to get from ffi.
   final getPath  =
   dylib1.lookupFunction<SHGetFolderPathC, SHGetFolderPathDart>('SHGetFolderPathA');
   print(getPath);
