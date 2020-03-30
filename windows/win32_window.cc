@@ -2,7 +2,12 @@
 
 #include <flutter_windows.h>
 
+#include <iostream>
 #include "resource.h"
+
+#include <KnownFolders.h>
+#include <shlobj_core.h>
+#include <sstream>
 
 namespace {
 
@@ -13,6 +18,21 @@ constexpr int kBaseDpi = 96;
 constexpr const wchar_t kClassName[] = L"CLASSNAME";
 
 using EnableNonClientDpiScaling = BOOL __stdcall(HWND hwnd);
+using GetFolderPath = HRESULT __stdcall(
+  HWND   hwnd,
+  int    csidl,
+  HANDLE hToken,
+  DWORD  dwFlags,
+  LPWSTR pszPath
+);
+
+using SHGetKnownFolderPath = HRESULT __stdcall(
+  REFKNOWNFOLDERID rfid,
+  DWORD            dwFlags,
+  HANDLE           hToken,
+  PWSTR            *ppszPath
+);
+
 
 // Scale helper to convert logical scaler values to physical using passed in
 // scale factor
@@ -35,6 +55,42 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
     FreeLibrary(user32_module);
   }
 }
+void LoadPath() {
+  HMODULE shell32_module = LoadLibraryA("shell32.dll");
+  if (!shell32_module) {
+    return;
+  }
+  auto getPath =
+      reinterpret_cast<GetFolderPath *>(
+          GetProcAddress(shell32_module, "SHGetFolderPathW"));
+  if (getPath != nullptr) {
+    TCHAR result[MAX_PATH*2] = { 0 };
+    auto r = getPath(0,0x001c, 0, 0, result);
+    std::wcerr << "Result " << result << std::endl;
+    std::cerr << "R " << r << std::endl;
+
+    FreeLibrary(shell32_module);
+  }
+}
+
+void LoadKnownPath() {
+  HMODULE shell32_module = LoadLibraryA("shell32.dll");
+  if (!shell32_module) {
+    return;
+  }
+  auto getPath =
+      reinterpret_cast<SHGetKnownFolderPath *>(
+          GetProcAddress(shell32_module, "SHGetKnownFolderPath"));
+  if (getPath != nullptr) {
+    PWSTR localAppDataFolder = NULL;
+    auto r =  getPath(FOLDERID_LocalAppData, KF_FLAG_CREATE, 0, &localAppDataFolder);
+    std::wcerr << "Known Result " << localAppDataFolder << std::endl;
+    std::cerr << "Known R " << r << std::endl;
+    CoTaskMemFree(localAppDataFolder);
+
+    FreeLibrary(shell32_module);
+  }
+}
 }  // namespace
 
 Win32Window::Win32Window() {}
@@ -44,7 +100,6 @@ Win32Window::~Win32Window() { Destroy(); }
 bool Win32Window::CreateAndShow(const std::wstring &title, const Point &origin,
                                 const Size &size) {
   Destroy();
-
   WNDCLASS window_class = RegisterWindowClass();
 
   const POINT target_point = {static_cast<LONG>(origin.x),
@@ -89,6 +144,8 @@ LRESULT CALLBACK Win32Window::WndProc(HWND const window, UINT const message,
 
     auto that = static_cast<Win32Window *>(window_struct->lpCreateParams);
     EnableFullDpiSupportIfAvailable(window);
+    LoadPath();
+    LoadKnownPath();
     that->window_handle_ = window;
   } else if (Win32Window *that = GetThisFromHandle(window)) {
     return that->MessageHandler(window, message, wparam, lparam);

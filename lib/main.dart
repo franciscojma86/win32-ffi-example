@@ -7,10 +7,10 @@ typedef FreeMemWindows = ffi.Void Function(ffi.Pointer<ffi.Void> pointer);
 typedef FreeMemDart = void Function(ffi.Pointer<ffi.Void> pointer);
 
 typedef SHGetFolderPathC = ffi.Int32 Function(ffi.Int64 hwnd, ffi.Int64 csidl,
-    ffi.Int64 hToken, ffi.Int64 dwFlags, ffi.Int64 pszpath);
+    ffi.Int64 hToken, ffi.Int64 dwFlags, ffi.Pointer<Utf16> pszpath);
 
 typedef SHGetFolderPathDart = int Function(
-    int hwnd, int cSisl, int hToken, int dwFlags, int pszpath);
+    int hwnd, int cSisl, int hToken, int dwFlags, ffi.Pointer<Utf16> pszpath);
 
 void main() {
   runApp(MyApp());
@@ -43,7 +43,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _incrementCounter() {
     final shellLib = ffi.DynamicLibrary.open('shell32.dll');
-    final oleLib = ffi.DynamicLibrary.open('ole32.dll');
     // This is a deprecated call, but should still work. Using this for now because it's easier to call.
     // The new one needs a GUI struct, that I haven't figured out how to get from ffi.
     final getFolderPath =
@@ -53,18 +52,20 @@ class _MyHomePageState extends State<MyHomePage> {
     final hwnd = 0;
     final cis = 0x001c; // THE ID for LOCAL_DATA
     final token = 0;
-    final flags = 0x8000; // CREATE FLAG
+    final flags = 0; // CREATE FLAG | Personal Flag
     ffi.Pointer<Utf16> r = allocate();
-    final getPathResult = getFolderPath(hwnd, cis, token, flags, r.address);
+    final getPathResult = getFolderPath(hwnd, cis, token, flags, r);
     print('Call result $getPathResult');
-    print('Path String ${r.ref.toString()}'); // This prints "Instance of 'Utf16'", which I believe is an empty string.
+    print(
+        'Path String ${r.ref.toString()}'); // This prints "Instance of 'Utf16'", which I believe is an empty string.
 //   File file = File(r.ref.toString());
 //   print(file.readAsStringSync());
 //   file.writeAsStringSync(r.ref.toString());
 //  print(file.path);
-    final freeMem =
-        oleLib.lookupFunction<FreeMemWindows, FreeMemDart>('CoTaskMemFree');
-    freeMem(r.cast());
+    // final oleLib = ffi.DynamicLibrary.open('ole32.dll');
+    // final freeMem =
+    //     oleLib.lookupFunction<FreeMemWindows, FreeMemDart>('CoTaskMemFree');
+    // freeMem(r.cast());
   }
 
   @override
