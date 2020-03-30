@@ -3,31 +3,17 @@ import 'dart:ffi' as ffi;
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 
+typedef FreeMemWindows = ffi.Void Function(ffi.Pointer<ffi.Void> pointer);
+typedef FreeMemDart = void Function(ffi.Pointer<ffi.Void> pointer);
 
-typedef FreeMemWindows = ffi.Void Function(
-  ffi.Pointer<ffi.Void> pointer
-);
-typedef FreeMemDart = void Function(
-  ffi.Pointer<ffi.Void> pointer
-);
-
-typedef SHGetFolderPathC = ffi.Int32 Function(
-    ffi.Int64 hwnd,
-    ffi.Int64 csidl,
-    ffi.Int64 hToken,
-    ffi.Int64 dwFlags,
-    ffi.Pointer<Utf16> pszpath);
+typedef SHGetFolderPathC = ffi.Int32 Function(ffi.Int64 hwnd, ffi.Int64 csidl,
+    ffi.Int64 hToken, ffi.Int64 dwFlags, ffi.Int64 pszpath);
 
 typedef SHGetFolderPathDart = int Function(
-    int hwnd,
-    int cSisl,
-    int hToken,
-    int dwFlags,
-    ffi.Pointer<Utf16> pszpath);
+    int hwnd, int cSisl, int hToken, int dwFlags, int pszpath);
 
 void main() {
   runApp(MyApp());
-
 }
 
 class MyApp extends StatelessWidget {
@@ -56,25 +42,29 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
   void _incrementCounter() {
-  final dylib1 = ffi.DynamicLibrary.open('shell32.dll');
-  final dylib2 = ffi.DynamicLibrary.open('ole32.dll');
-  // This is a deprecated call, but should still work. Using this for now because it's easier to call.
-  // The new one needs a GUI struct, that I haven't figured out how to get from ffi.
-  final getPath  =
-  dylib1.lookupFunction<SHGetFolderPathC, SHGetFolderPathDart>('SHGetFolderPathA');
-  print(getPath);
- final cis = 0x001c; // THE ID for LOCAL_DATA
- final flags = 0x8000; // CREATE FLAG
-  ffi.Pointer<Utf16> r = allocate();
-  final getPathResult = getPath(0, cis, 0,flags, r);
-  print(getPathResult);
-  print(r.ref.toString()); // This prints "Instance of 'Utf16'"
+    final shellLib = ffi.DynamicLibrary.open('shell32.dll');
+    final oleLib = ffi.DynamicLibrary.open('ole32.dll');
+    // This is a deprecated call, but should still work. Using this for now because it's easier to call.
+    // The new one needs a GUI struct, that I haven't figured out how to get from ffi.
+    final getFolderPath =
+        shellLib.lookupFunction<SHGetFolderPathC, SHGetFolderPathDart>(
+            'SHGetFolderPathW');
+    print(getFolderPath);
+    final hwnd = 0;
+    final cis = 0x001c; // THE ID for LOCAL_DATA
+    final token = 0;
+    final flags = 0x8000; // CREATE FLAG
+    ffi.Pointer<Utf16> r = allocate();
+    final getPathResult = getFolderPath(hwnd, cis, token, flags, r.address);
+    print('Call result $getPathResult');
+    print('Path String ${r.ref.toString()}'); // This prints "Instance of 'Utf16'", which I believe is an empty string.
 //   File file = File(r.ref.toString());
 //   print(file.readAsStringSync());
 //   file.writeAsStringSync(r.ref.toString());
 //  print(file.path);
-  final freeMem = dylib2.lookupFunction<FreeMemWindows, FreeMemDart>('CoTaskMemFree');
-  freeMem(r.cast());
+    final freeMem =
+        oleLib.lookupFunction<FreeMemWindows, FreeMemDart>('CoTaskMemFree');
+    freeMem(r.cast());
   }
 
   @override
